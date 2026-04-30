@@ -1,5 +1,12 @@
-"scripts": {
-  "dev": "next dev",
-  "build": "next build",
-  "start": "next start"
+{
+  "name": "detalcenter-az",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.js",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend start"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

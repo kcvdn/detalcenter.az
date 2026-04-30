@@ -1,37 +1,242 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SELLER_ADMIN
+  USER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DONE
+}
+
 model User {
-  id          Int      @id @default(autoincrement())
-  name        String
-  email       String   @unique
-  password    String
-  role        Role     @default(STAFF)
-  created_by  Int?
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  username  String   @unique
+  name      String
+  email     String   @unique
+  password  String
+  role      UserRole @default(USER)
+  sellerId  Int?
+  createdAt DateTime @default(now())
+
+  favorites Favorite[]
+  cartItems CartItem[]
+  orders    Order[]
+  seller    Seller?    @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+
+  @@index([sellerId])
 }
 
 model Seller {
   id        Int      @id @default(autoincrement())
   name      String
+  logo      String?
   phone     String?
   address   String?
+  description String?
   createdAt DateTime @default(now())
 
-  products  Product[]
+  products   Product[]
+  adminUsers User[]
+}
+
+model Brand {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  models Model[]
+  cars   Car[]
+}
+
+model Model {
+  id        Int      @id @default(autoincrement())
+  name      String
+  brandId   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand Brand @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  cars  Car[]
+
+  @@unique([brandId, name])
+  @@index([brandId])
+}
+
+model Engine {
+  id        Int      @id @default(autoincrement())
+  name      String
+  fuelType  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cars Car[]
+
+  @@unique([name, fuelType])
+  @@index([name])
+  @@index([fuelType])
+}
+
+model Car {
+  id        Int      @id @default(autoincrement())
+  brandId   Int
+  modelId   Int
+  bodyType  String   @default("UNKNOWN")
+  yearFrom  Int
+  yearTo    Int
+  engineId  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  brand Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  model Model  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  engine Engine @relation(fields: [engineId], references: [id], onDelete: Cascade)
+
+  productCars ProductCar[]
+
+  @@unique([brandId, modelId, bodyType, yearFrom, yearTo, engineId])
+  @@index([brandId, modelId])
+  @@index([brandId, modelId, bodyType, yearFrom, yearTo])
+  @@index([engineId])
+  @@index([yearFrom, yearTo])
 }
 
 model Product {
   id          Int      @id @default(autoincrement())
   name        String
+  category    String
   price       Float
+  imageUrl    String
+  oemCode     String?
   description String?
-  seller_id   Int
-  created_by  Int
+  seller_id   Int?
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  seller Seller @relation(fields: [seller_id], references: [id])
+  seller     Seller?      @relation(fields: [seller_id], references: [id], onDelete: SetNull)
+  productCars ProductCar[]
+  favorites   Favorite[]
+  cartItems   CartItem[]
+  orderItems  OrderItem[]
+
+  @@index([category])
+  @@index([createdAt])
+  @@index([oemCode])
+  @@index([seller_id])
 }
 
-enum Role {
-  ADMIN
-  STAFF
-  VIEWER
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  imageUrl  String?
+  parentId  Int?
+  parent    Category? @relation("CategoryToCategory_parent", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Category[] @relation("CategoryToCategory_parent")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([parentId])
+}
+
+model ProductCar {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  carId     Int
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  car     Car     @relation(fields: [carId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, carId])
+  @@index([carId])
+  @@index([carId, productId])
+  @@index([productId])
+}
+
+model Favorite {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  product_id Int
+  createdAt  DateTime @default(now())
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, product_id])
+}
+
+model CartItem {
+  id         Int @id @default(autoincrement())
+  user_id    Int
+  product_id Int
+  quantity   Int @default(1)
+
+  user    User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@unique([user_id, product_id])
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  user_id   Int
+  total     Float
+  status    OrderStatus @default(PENDING)
+  name      String
+  phone     String
+  address   String
+  note      String?
+  createdAt DateTime    @default(now())
+
+  user  User        @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  items OrderItem[]
+}
+
+model OrderItem {
+  id         Int @id @default(autoincrement())
+  order_id   Int
+  product_id Int
+  quantity   Int
+
+  order   Order   @relation(fields: [order_id], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+}
+
+model SiteContent {
+  id                    Int    @id @default(autoincrement())
+  heroTitle             String
+  heroDesc              String
+  heroButton            String
+  heroImage             String
+  footerDescription     String @default("Keyfiyyetli ehtiyat hisseleri, rahat sifaris ve suretli destek bir yerde.")
+  footerHighlightLabel  String @default("Destek xidmeti")
+  footerHighlightValue  String @default("24/7")
+  footerWorkHoursLabel  String @default("Is gunleri")
+  footerWorkHoursValue  String @default("Be. - Ce. / 09:00 - 18:00")
+  footerPhoneLabel      String @default("Elaqe nomresi")
+  footerPhoneValue      String @default("+994 55 738 00 13")
+  footerEmailLabel      String @default("E-poct")
+  footerEmailValue      String @default("info@avtopro.az")
+  footerSocialLabel     String @default("Bizi izleyin")
+  footerFacebookUrl     String @default("https://facebook.com")
+  footerInstagramUrl    String @default("https://instagram.com")
+  footerLinkedinUrl     String @default("https://linkedin.com")
+  footerTiktokUrl       String @default("https://tiktok.com")
+  footerCopyright       String @default("Detalcenter.az 2026, Butun huquqlar qorunur.")
+  footerPrivacyLabel    String @default("Mexfilik siyaseti")
+  footerTermsLabel      String @default("Sertler ve qaydalar")
+  footerAboutLabel      String @default("Haqqimizda")
+  footerFaqLabel        String @default("Tez-tez verilen suallar")
 }

@@ -1,35 +1,31 @@
-const jwt = require("jsonwebtoken");
+const { parseAuthToken } = require("../lib/token");
 
-// 🔐 Token yoxlama
 const auth = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
-  if (!authHeader) {
-    return res.status(401).json({ message: "Token yoxdur" });
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "Token is required" });
   }
 
-  // Bearer TOKEN
-  const token = authHeader.split(" ")[1];
+  const token = authHeader.slice("Bearer ".length).trim();
+  const decoded = parseAuthToken(token);
 
-  try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    req.user = decoded; // { id, role }
-    next();
-  } catch (err) {
-    return res.status(401).json({ message: "Token yanlışdır" });
+  if (!decoded) {
+    return res.status(401).json({ error: "Token is invalid" });
   }
+
+  req.user = decoded;
+  next();
 };
 
-// 🧠 Role yoxlama
 const role = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ error: "Unauthorized" });
     }
 
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Access denied" });
+      return res.status(403).json({ error: "Access denied" });
     }
 
     next();
@@ -38,5 +34,5 @@ const role = (roles) => {
 
 module.exports = {
   auth,
-  role
+  role,
 };

@@ -1,1 +1,9 @@
-{}
+{
+  "[project]/components/AddToCartModal.jsx [app-client] (ecmascript, next/dynamic entry)": {
+    "id": "[project]/components/AddToCartModal.jsx [app-client] (ecmascript, next/dynamic entry)",
+    "files": [
+      "static/chunks/components_AddToCartModal_jsx_0-fp3dc._.js",
+      "static/chunks/components_AddToCartModal_jsx_0_ojea~._.js"
+    ]
+  }
+}

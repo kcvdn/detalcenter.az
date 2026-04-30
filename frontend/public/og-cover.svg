@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" fill="none">
+  <rect width="1200" height="630" fill="#020617"/>
+  <rect width="1200" height="630" fill="url(#bgGlow)"/>
+  <circle cx="934" cy="160" r="220" fill="url(#redGlow)" fill-opacity=".35"/>
+  <circle cx="256" cy="520" r="260" fill="url(#whiteGlow)" fill-opacity=".1"/>
+  <path d="M744 227C820.216 227 882 288.784 882 365" stroke="url(#arcMain)" stroke-width="28" stroke-linecap="round"/>
+  <path d="M520 365C520 288.784 581.784 227 658 227C734.216 227 796 288.784 796 365" stroke="url(#arcSoft)" stroke-width="20" stroke-linecap="round"/>
+  <path d="M659 363L821 247" stroke="#F8FAFC" stroke-width="14" stroke-linecap="round"/>
+  <path d="M658 363L808 255" stroke="url(#needle)" stroke-width="18" stroke-linecap="round"/>
+  <circle cx="658" cy="363" r="38" fill="#020617" stroke="#F8FAFC" stroke-width="6"/>
+  <circle cx="658" cy="363" r="14" fill="#E2E8F0"/>
+  <text x="110" y="442" fill="#EF4444" font-family="Arial, sans-serif" font-size="92" font-style="italic" font-weight="700">DETAL</text>
+  <text x="404" y="442" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="92" font-style="italic" font-weight="700">CENTER.AZ</text>
+  <text x="176" y="506" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="34" letter-spacing="10">AVTOMOBIL DETALLARI</text>
+  <text x="110" y="156" fill="#F8FAFC" font-family="Arial, sans-serif" font-size="34" font-weight="700">Detalcenter.az</text>
+  <text x="110" y="202" fill="#CBD5E1" font-family="Arial, sans-serif" font-size="28">Avtomobil ehtiyat hisseleri, OEM axtarisi ve online sifaris</text>
+  <defs>
+    <linearGradient id="bgGlow" x1="113" y1="48" x2="1029" y2="581" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset=".62" stop-color="#111827"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <radialGradient id="redGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(934 160) rotate(90) scale(220)">
+      <stop stop-color="#EF4444"/>
+      <stop offset="1" stop-color="#EF4444" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="whiteGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(256 520) rotate(90) scale(260)">
+      <stop stop-color="#E2E8F0"/>
+      <stop offset="1" stop-color="#E2E8F0" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="arcMain" x1="744" y1="227" x2="882" y2="365" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FB7185"/>
+      <stop offset=".5" stop-color="#EF4444"/>
+      <stop offset="1" stop-color="#B91C1C"/>
+    </linearGradient>
+    <linearGradient id="arcSoft" x1="520" y1="227" x2="796" y2="365" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#CBD5E1"/>
+      <stop offset=".55" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#94A3B8"/>
+    </linearGradient>
+    <linearGradient id="needle" x1="658" y1="363" x2="808" y2="255" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#B91C1C"/>
+      <stop offset=".55" stop-color="#EF4444"/>
+      <stop offset="1" stop-color="#F8FAFC"/>
+    </linearGradient>
+  </defs>
+</svg>
