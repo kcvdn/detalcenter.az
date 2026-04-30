@@ -6,7 +6,7 @@ import {
   normalizeSearchResults,
 } from "@/lib/marketplaceData";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "";
+const apiUrl = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || "";
 const resolvedApiUrl = apiUrl || "http://localhost:5000";
 
 async function fetchJson(pathname, { revalidate = 300, searchParams } = {}) {

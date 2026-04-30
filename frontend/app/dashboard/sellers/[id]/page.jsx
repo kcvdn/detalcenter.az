@@ -9,7 +9,7 @@ import SkeletonCard from "@/components/SkeletonCard";
 import { productPlaceholderSrc, resolveImageSrc } from "@/lib/images";
 import { getAuthHeaders } from "@/lib/session";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const Toast = dynamic(() => import("@/app/dashboard/components/Toast"), {
   ssr: false,
 });

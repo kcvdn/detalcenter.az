@@ -7,7 +7,7 @@ import Loader from "@/app/dashboard/components/Loader";
 import Toast from "@/app/dashboard/components/Toast";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
 const formatCurrency = (value) =>
   `${Number(value || 0).toLocaleString("az-AZ", {

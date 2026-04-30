@@ -12,7 +12,7 @@ import { navigateWithProgress } from "@/lib/navigationProgress";
 import { clearStoredSession, getAuthHeaders, getStoredSession } from "@/lib/session";
 import useTranslation from "@/hooks/useTranslation";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
 function Spinner() {
   return (

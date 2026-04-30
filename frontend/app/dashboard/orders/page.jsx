@@ -7,7 +7,7 @@ import Toast from "@/app/dashboard/components/Toast";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 import useTranslation from "@/hooks/useTranslation";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const statuses = ["PENDING", "CONFIRMED", "SHIPPED", "DONE"];
 const statusClasses = {
   PENDING: "bg-yellow-100 text-yellow-800",

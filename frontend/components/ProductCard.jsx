@@ -12,7 +12,7 @@ import { storeProductPreview } from "@/lib/productTransitionCache";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 import useTranslation from "@/hooks/useTranslation";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const AddToCartModal = dynamic(() => import("@/components/AddToCartModal"), {
   ssr: false,
 });

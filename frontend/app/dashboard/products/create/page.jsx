@@ -7,7 +7,7 @@ import AppImage from "@/components/AppImage";
 import { productPlaceholderSrc, resolveImageSrc } from "@/lib/images";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const Loader = dynamic(() => import("@/app/dashboard/components/Loader"), {
   ssr: false,
 });

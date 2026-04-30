@@ -8,7 +8,7 @@ import { clearCachedGet } from "@/lib/apiClient";
 import { normalizeSiteContent } from "@/lib/marketplaceData";
 import { getAuthHeaders } from "@/lib/session";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 const Loader = dynamic(() => import("@/app/dashboard/components/Loader"), {
   ssr: false,
 });

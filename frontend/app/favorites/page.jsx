@@ -9,7 +9,7 @@ import SkeletonCard from "@/components/SkeletonCard";
 import useTranslation from "@/hooks/useTranslation";
 import { clearStoredSession, getAuthHeaders, getStoredSession } from "@/lib/session";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function FavoritesPage() {
   const router = useRouter();

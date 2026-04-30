@@ -8,7 +8,7 @@ import useTranslation from "@/hooks/useTranslation";
 import { navigateWithProgress } from "@/lib/navigationProgress";
 import { clearStoredSession, getStoredSession, setStoredSession } from "@/lib/session";
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
 
 export default function LoginPage() {
   const router = useRouter();
