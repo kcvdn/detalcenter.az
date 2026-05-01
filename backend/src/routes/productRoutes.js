@@ -44,7 +44,7 @@ function normalizeIncomingProductBody(req, _res, next) {
 
   req.body = {
     ...body,
-    imageUrl: body.imageUrl ?? body.image ?? "",
+    imageUrl: body.imageUrl ?? body.image,
     imageUrls: normalizeJsonInput(body.imageUrls ?? body.images),
     sellerId: body.sellerId ?? body.seller_id,
     compatibility: normalizeCompatibilityInput(body.compatibility),

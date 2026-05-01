@@ -76,7 +76,7 @@ const createProductSchema = z
     name: z.string().trim().min(1, "name is required"),
     category: z.string().trim().min(1, "category is required"),
     price: z.coerce.number().nonnegative(),
-    imageUrl: z.string().trim().min(1, "imageUrl is required").optional(),
+    imageUrl: z.preprocess(normalizeOptionalString, z.string().trim().min(1).optional()),
     imageUrls: imageCollectionSchema.optional(),
     oemCode: z.preprocess(normalizeNullableString, z.string().trim().min(1).nullable()).optional(),
     description: z.preprocess(normalizeNullableString, z.string().trim().nullable()).optional(),
