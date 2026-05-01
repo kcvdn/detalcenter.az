@@ -134,6 +134,77 @@ function normalizeVehicleOptions(data) {
     .filter((entry) => entry.brand);
 }
 
+function buildCategoryTree(categoryItems) {
+  const normalizedCategories = Array.isArray(categoryItems)
+    ? categoryItems.filter((category) => category?.name)
+    : [];
+  const byParent = new Map();
+  const existingIds = new Set(normalizedCategories.map((category) => String(category.id)));
+
+  normalizedCategories.forEach((category) => {
+    const parentKey =
+      category.parentId !== null && category.parentId !== undefined && existingIds.has(String(category.parentId))
+        ? String(category.parentId)
+        : "root";
+    const siblings = byParent.get(parentKey) || [];
+    siblings.push(category);
+    byParent.set(parentKey, siblings);
+  });
+
+  const buildTree = (parentKey = "root") => {
+    return (byParent.get(parentKey) || []).map((category) => ({
+      ...category,
+      children: buildTree(String(category.id)),
+    }));
+  };
+
+  return buildTree();
+}
+
+function flattenDescendantCategories(categoryNodes, depth = 1) {
+  if (!Array.isArray(categoryNodes)) {
+    return [];
+  }
+
+  return categoryNodes.flatMap((category) => {
+    if (!category?.name) {
+      return [];
+    }
+
+    return [
+      {
+        ...category,
+        depth,
+      },
+      ...flattenDescendantCategories(category.children, depth + 1),
+    ];
+  });
+}
+
+function findCategoryNode(categoryNodes, matcher) {
+  if (!Array.isArray(categoryNodes)) {
+    return null;
+  }
+
+  for (const category of categoryNodes) {
+    if (!category) {
+      continue;
+    }
+
+    if (matcher(category)) {
+      return category;
+    }
+
+    const nestedMatch = findCategoryNode(category.children, matcher);
+
+    if (nestedMatch) {
+      return nestedMatch;
+    }
+  }
+
+  return null;
+}
+
 function extractCompatibilityEntries(product) {
   const compatibilityRows = Array.isArray(product?.compatibility) ? product.compatibility : [];
 
@@ -227,6 +298,7 @@ export default function HomePageClient({
   const [content, setContent] = useState(initialContent);
   const [contentLoading, setContentLoading] = useState(!hasInitialContent);
   const [categories, setCategories] = useState(initialCategories);
+  const [expandedMobileCategoryId, setExpandedMobileCategoryId] = useState(null);
   const [vehicleOptions, setVehicleOptions] = useState(() => normalizeVehicleOptions(initialVehicleOptions));
   const debouncedFilters = useMemo(() => {
     try {
@@ -744,16 +816,77 @@ export default function HomePageClient({
     ? smartSearchSummary
     : hasCategorySelection
       ? homeUiCopy.categoriesDescription
-    : hasManualVehicleSelection
+      : hasManualVehicleSelection
       ? manualVehicleSummary
       : "";
-  const desktopHomeCategories = useMemo(() => {
-    const baseCategories = categories.filter((category) => category?.source !== "product");
-    const rootCategories = baseCategories.filter((category) => !category?.parentId);
-    const categorySource = rootCategories.length > 0 ? rootCategories : baseCategories;
+  const managedCategories = useMemo(
+    () => categories.filter((category) => category?.source !== "product"),
+    [categories],
+  );
+  const productOnlyCategories = useMemo(
+    () => categories.filter((category) => category?.source === "product"),
+    [categories],
+  );
+  const categoryTree = useMemo(
+    () => buildCategoryTree(managedCategories),
+    [managedCategories],
+  );
+  const categoryGroups = useMemo(() => {
+    if (categoryTree.length > 0) {
+      return [
+        ...categoryTree,
+        ...productOnlyCategories.map((category) => ({
+          ...category,
+          children: [],
+        })),
+      ];
+    }
 
-    return categorySource.slice(0, 8);
-  }, [categories]);
+    return categories.map((category) => ({
+      ...category,
+      children: [],
+    }));
+  }, [categories, categoryTree, productOnlyCategories]);
+  const desktopHomeCategories = useMemo(() => {
+    return categoryGroups.slice(0, 8);
+  }, [categoryGroups]);
+  const selectedCategoryNode = useMemo(() => {
+    const normalizedSelectedCategory = String(selectedCategory || "").trim().toLowerCase();
+
+    if (!normalizedSelectedCategory) {
+      return null;
+    }
+
+    return findCategoryNode(
+      categoryGroups,
+      (category) => String(category?.name || "").trim().toLowerCase() === normalizedSelectedCategory,
+    );
+  }, [categoryGroups, selectedCategory]);
+  const selectedCategorySubcategories = useMemo(() => {
+    if (!selectedCategoryNode) {
+      return [];
+    }
+
+    if (Array.isArray(selectedCategoryNode.children) && selectedCategoryNode.children.length > 0) {
+      return flattenDescendantCategories(selectedCategoryNode.children);
+    }
+
+    if (selectedCategoryNode.parentId) {
+      const parentNode = findCategoryNode(
+        categoryGroups,
+        (category) => String(category?.id) === String(selectedCategoryNode.parentId),
+      );
+
+      if (Array.isArray(parentNode?.children) && parentNode.children.length > 0) {
+        return parentNode.children.map((category) => ({
+          ...category,
+          depth: 1,
+        }));
+      }
+    }
+
+    return [];
+  }, [categoryGroups, selectedCategoryNode]);
   const handleSearchChange = useCallback(
     (value) => {
       setSearchMeta(null);
@@ -791,6 +924,7 @@ export default function HomePageClient({
   }, []);
 
   const handleCategorySelect = useCallback((categoryName) => {
+    setExpandedMobileCategoryId(null);
     setSelectedCategory(categoryName);
     document.getElementById("products-section")?.scrollIntoView({
       behavior: "smooth",
@@ -798,7 +932,22 @@ export default function HomePageClient({
     });
   }, []);
 
+  const handleCatalogCategoryPress = useCallback((category) => {
+    const hasChildren = Array.isArray(category?.children) && category.children.length > 0;
+    const isMobileViewport = typeof window !== "undefined" && window.innerWidth < 768;
+
+    if (hasChildren && isMobileViewport) {
+      setExpandedMobileCategoryId((current) =>
+        String(current) === String(category.id) ? null : category.id,
+      );
+      return;
+    }
+
+    handleCategorySelect(category.name);
+  }, [handleCategorySelect]);
+
   const handleClearCatalogSelection = useCallback(() => {
+    setExpandedMobileCategoryId(null);
     setSelectedCategory("");
   }, []);
 
@@ -932,25 +1081,26 @@ export default function HomePageClient({
 
             <div className="grid gap-4 lg:grid-cols-4">
               {desktopHomeCategories.map((category) => (
-                <button
+                <div
                   key={`home-category-${category.id}`}
-                  type="button"
-                  onClick={() => handleCategorySelect(category.name)}
-                  className="press-feedback group flex items-center gap-4 rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff,#f8fafc)] px-4 py-4 text-left shadow-[0_16px_38px_-28px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_22px_50px_-30px_rgba(15,23,42,0.4)]"
+                  className="rounded-[22px] border border-slate-200 bg-[linear-gradient(135deg,#ffffff,#f8fafc)] shadow-[0_16px_38px_-28px_rgba(15,23,42,0.35)] transition duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_22px_50px_-30px_rgba(15,23,42,0.4)]"
                 >
-                  <CategoryVisual category={category} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-base font-semibold leading-6 text-slate-900">
-                      {category.name}
-                    </p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-                      Kateqoriya
-                    </p>
-                  </div>
-                  <div className="shrink-0 text-slate-300 transition duration-200 group-hover:text-slate-500">
-                    <CatalogArrowIcon />
-                  </div>
-                </button>
+                  <button
+                    type="button"
+                    onClick={() => handleCategorySelect(category.name)}
+                    className="press-feedback group flex w-full items-center gap-4 px-4 py-4 text-left"
+                  >
+                    <CategoryVisual category={category} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-base font-semibold leading-6 text-slate-900">
+                        {category.name}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-slate-300 transition duration-200 group-hover:text-slate-500">
+                      <CatalogArrowIcon />
+                    </div>
+                  </button>
+                </div>
               ))}
             </div>
           </div>
@@ -963,24 +1113,56 @@ export default function HomePageClient({
             {isCatalogLanding ? (
                 <section className="space-y-4" id="products-section">
                   <div className="space-y-3">
-                    {categories.map((category) => {
+                    {categoryGroups.map((category) => {
+                      const descendantCategories = flattenDescendantCategories(category.children);
+
                       return (
-                        <button
+                        <div
                           key={category.id}
-                          type="button"
-                          onClick={() => handleCategorySelect(category.name)}
-                          className="press-feedback flex w-full items-center gap-4 rounded-[18px] border border-slate-300 bg-white px-3 py-3 text-left shadow-sm transition duration-200 hover:border-slate-400 hover:bg-slate-50"
+                          className="rounded-[18px] border border-slate-300 bg-white p-3 shadow-sm"
                         >
-                          <CategoryVisual category={category} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-lg font-semibold leading-6 text-slate-800">
-                              {category.name}
-                            </p>
-                          </div>
-                          <div className="shrink-0 text-slate-400">
-                            <CatalogArrowIcon />
-                          </div>
-                        </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCatalogCategoryPress(category)}
+                            className="press-feedback flex w-full items-center gap-4 text-left transition duration-200 hover:text-slate-950"
+                          >
+                            <CategoryVisual category={category} />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-lg font-semibold leading-6 text-slate-800">
+                                {category.name}
+                              </p>
+                            </div>
+                            <div className="shrink-0 text-slate-400">
+                              <CatalogArrowIcon />
+                            </div>
+                          </button>
+
+                          {descendantCategories.length > 0 && String(expandedMobileCategoryId) === String(category.id) ? (
+                            <div className="mt-3 space-y-2 border-t border-slate-200 pt-3 md:hidden">
+                              <button
+                                type="button"
+                                onClick={() => handleCategorySelect(category.name)}
+                                className="press-feedback flex w-full items-center justify-between rounded-2xl border border-slate-900 bg-slate-900 px-4 py-3 text-left text-sm font-semibold text-white transition duration-200 hover:bg-slate-800"
+                              >
+                                <span>Butun {category.name}</span>
+                                <span className="text-xs font-medium text-slate-300">Hamisi</span>
+                              </button>
+                              {descendantCategories.map((child) => (
+                                <button
+                                  key={`catalog-category-mobile-child-${category.id}-${child.id}`}
+                                  type="button"
+                                  onClick={() => handleCategorySelect(child.name)}
+                                  className="press-feedback flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left text-sm font-medium text-slate-700 transition duration-200 hover:border-slate-300 hover:bg-slate-100 hover:text-slate-950"
+                                >
+                                  <span>{child.name}</span>
+                                  <span className="text-slate-400">
+                                    <CatalogArrowIcon />
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
                       );
                     })}
                   </div>
@@ -997,6 +1179,24 @@ export default function HomePageClient({
                       </h2>
                       {activeSectionDescription ? (
                         <p className="mt-2 max-w-2xl text-sm text-slate-500">{activeSectionDescription}</p>
+                      ) : null}
+                      {hasCategorySelection && selectedCategorySubcategories.length > 0 ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {selectedCategorySubcategories.map((category) => (
+                            <button
+                              key={`selected-category-child-${category.id}`}
+                              type="button"
+                              onClick={() => handleCategorySelect(category.name)}
+                              className={`press-feedback rounded-full border px-3 py-1.5 text-sm font-medium transition duration-200 ${
+                                selectedCategory === category.name
+                                  ? "border-slate-900 bg-slate-900 text-white"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+                              }`}
+                            >
+                              {category.name}
+                            </button>
+                          ))}
+                        </div>
                       ) : null}
                     </div>
 
@@ -1084,13 +1284,31 @@ export default function HomePageClient({
             <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
               Mehsullar
             </p>
-            <h2 className="mt-1 text-xl font-extrabold tracking-[-0.03em] text-slate-950 md:text-2xl">
-              {activeSectionTitle}
-            </h2>
-            {activeSectionDescription ? (
-              <p className="mt-2 max-w-2xl text-sm text-slate-500">{activeSectionDescription}</p>
-            ) : null}
-          </div>
+                      <h2 className="mt-1 text-xl font-extrabold tracking-[-0.03em] text-slate-950 md:text-2xl">
+                        {activeSectionTitle}
+                      </h2>
+                      {activeSectionDescription ? (
+                        <p className="mt-2 max-w-2xl text-sm text-slate-500">{activeSectionDescription}</p>
+                      ) : null}
+                      {hasCategorySelection && selectedCategorySubcategories.length > 0 ? (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          {selectedCategorySubcategories.map((category) => (
+                            <button
+                              key={`homepage-selected-category-child-${category.id}`}
+                              type="button"
+                              onClick={() => handleCategorySelect(category.name)}
+                              className={`press-feedback rounded-full border px-3 py-1.5 text-sm font-medium transition duration-200 ${
+                                selectedCategory === category.name
+                                  ? "border-slate-900 bg-slate-900 text-white"
+                                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+                              }`}
+                            >
+                              {category.name}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
 
           {hasVehicleSelection || hasCategorySelection ? (
             <button
