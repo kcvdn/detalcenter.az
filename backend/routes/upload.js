@@ -35,7 +35,7 @@ const upload = multer({
   },
 });
 
-router.post("/", auth, role(["ADMIN"]), upload.single("image"), (req, res) => {
+router.post("/", auth, role(["ADMIN", "SELLER_ADMIN"]), upload.single("image"), (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: "Image is required" });
   }

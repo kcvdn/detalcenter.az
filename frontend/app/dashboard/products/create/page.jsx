@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import dynamic from "next/dynamic";
 import AppImage from "@/components/AppImage";
-import { productPlaceholderSrc, resolveImageSrc } from "@/lib/images";
+import { productPlaceholderSrc } from "@/lib/images";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -51,16 +51,8 @@ const emptyForm = {
   oemCode: "",
   description: "",
   sellerId: "",
-  imageUrlsText: "",
   imageFiles: [],
 };
-
-function parseImageUrlsText(value) {
-  return String(value || "")
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
 
 function normalizeCompatibilityPayload(rows) {
   return rows
@@ -169,7 +161,7 @@ export default function CreateProductPage() {
 
   useEffect(() => {
     if (!Array.isArray(form.imageFiles) || form.imageFiles.length === 0) {
-      setPreviewUrls(parseImageUrlsText(form.imageUrlsText).map((image) => resolveImageSrc(image)).filter(Boolean));
+      setPreviewUrls([]);
       return undefined;
     }
 
@@ -179,7 +171,7 @@ export default function CreateProductPage() {
     return () => {
       objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
     };
-  }, [form.imageFiles, form.imageUrlsText]);
+  }, [form.imageFiles]);
 
   const normalizedCompatibility = useMemo(
     () => normalizeCompatibilityPayload(compatibility),
@@ -315,12 +307,11 @@ export default function CreateProductPage() {
     setSubmitting(true);
 
     try {
-      const manualImageUrls = parseImageUrlsText(form.imageUrlsText);
       const uploadedImageUrls = form.imageFiles.length > 0 ? await uploadImages(form.imageFiles) : [];
-      const imageUrls = [...uploadedImageUrls, ...manualImageUrls].filter(Boolean);
+      const imageUrls = uploadedImageUrls.filter(Boolean);
 
       if (imageUrls.length === 0) {
-        setToast({ message: "Sekil ve ya image URL vacibdir.", type: "error" });
+        setToast({ message: "En azi bir mehsul sekli yuklemek vacibdir.", type: "error" });
         setSubmitting(false);
         return;
       }
@@ -499,25 +490,7 @@ export default function CreateProductPage() {
                 className="block w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-900 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-slate-800"
               />
               <p className="mt-2 text-xs text-slate-500">
-                Birden cox sekil secmek olar.
-              </p>
-            </div>
-
-            <div className="md:col-span-2">
-              <label className="mb-3 block text-sm font-semibold text-slate-700" htmlFor="product-image-url">
-                Image URL-ler
-              </label>
-              <textarea
-                id="product-image-url"
-                rows={4}
-                value={form.imageUrlsText}
-                onChange={updateField("imageUrlsText")}
-                placeholder={"Her setirde bir URL yaz\nhttp://localhost:5000/uploads/1.jpg\nhttp://localhost:5000/uploads/2.jpg"}
-                disabled={submitting}
-                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
-              />
-              <p className="mt-2 text-xs text-slate-500">
-                Istesen bir nece URL-ni setir-setir elave ede bilersen.
+                URL yazmaga ehtiyac yoxdur. Birden cox sekil secib birbasa upload ede bilersen.
               </p>
             </div>
           </div>
@@ -701,7 +674,7 @@ export default function CreateProductPage() {
                 />
               ) : (
                 <div className="flex h-72 items-center justify-center px-6 text-center text-sm text-slate-400">
-                  Sekil sec ve ya image URL daxil et, preview burada gorunsun.
+                  Sekil sec, preview burada gorunsun.
                 </div>
               )}
             </div>

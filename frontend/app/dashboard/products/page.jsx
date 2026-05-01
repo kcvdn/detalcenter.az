@@ -51,18 +51,10 @@ const emptyEditForm = {
   oemCode: "",
   description: "",
   sellerId: "",
-  imageUrlsText: "",
   imageFiles: [],
   currentImages: [],
   compatibility: [createEmptyCompatibility()],
 };
-
-function parseImageUrlsText(value) {
-  return String(value || "")
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
 
 function normalizeProductsResponse(data) {
   if (Array.isArray(data)) {
@@ -186,8 +178,7 @@ export default function ProductsPage() {
 
   useEffect(() => {
     if (!Array.isArray(editForm.imageFiles) || editForm.imageFiles.length === 0) {
-      const currentPreviewUrls = parseImageUrlsText(editForm.imageUrlsText)
-        .concat(Array.isArray(editForm.currentImages) ? editForm.currentImages : [])
+      const currentPreviewUrls = (Array.isArray(editForm.currentImages) ? editForm.currentImages : [])
         .map((image) => resolveImageSrc(image))
         .filter(Boolean);
       setEditPreviewUrls(Array.from(new Set(currentPreviewUrls)));
@@ -200,7 +191,7 @@ export default function ProductsPage() {
     return () => {
       objectUrls.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
     };
-  }, [editForm.imageFiles, editForm.imageUrlsText, editForm.currentImages]);
+  }, [editForm.imageFiles, editForm.currentImages]);
 
   const categoryOptions = useMemo(() => {
     return categories
@@ -302,7 +293,6 @@ export default function ProductsPage() {
       oemCode: product.oemCode || "",
       description: product.description || "",
       sellerId: String(product.seller_id || product.seller?.id || ""),
-      imageUrlsText: Array.isArray(product.images) ? product.images.join("\n") : product.image || "",
       imageFiles: [],
       currentImages: Array.isArray(product.images)
         ? product.images.map((image) => resolveImageSrc(image)).filter(Boolean)
@@ -392,7 +382,6 @@ export default function ProductsPage() {
     setSavingId(productId);
 
     try {
-      const manualImageUrls = parseImageUrlsText(editForm.imageUrlsText);
       const payload = {
         name: editForm.name.trim(),
         category: editForm.category.trim(),
@@ -410,8 +399,6 @@ export default function ProductsPage() {
 
       if (editForm.imageFiles.length > 0) {
         payload.imageUrls = await Promise.all(editForm.imageFiles.map((file) => uploadImage(file)));
-      } else if (manualImageUrls.length > 0) {
-        payload.imageUrls = manualImageUrls;
       }
 
       await safePut(
@@ -669,16 +656,9 @@ export default function ProductsPage() {
                           disabled={isSaving}
                           className="w-full rounded-xl border border-slate-200 px-4 py-3"
                         />
-                        <textarea
-                          rows={4}
-                          value={editForm.imageUrlsText}
-                          onChange={(event) =>
-                            setEditForm((current) => ({ ...current, imageUrlsText: event.target.value }))
-                          }
-                          disabled={isSaving}
-                          className="w-full rounded-xl border border-slate-200 px-4 py-3"
-                          placeholder="Her setirde bir image URL"
-                        />
+                        <p className="text-xs text-slate-500">
+                          Yeni sekiller upload etsən, mehsulun sekil qalereyasi bunlarla yenilenecek.
+                        </p>
                         {editPreviewUrls.length > 1 ? (
                           <div className="flex gap-2 overflow-x-auto pb-1">
                             {editPreviewUrls.map((previewUrl, index) => (
