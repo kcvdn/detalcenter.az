@@ -475,11 +475,10 @@ export default function HomePageClient({
       setSearchMeta(null);
       setLoading(false);
       setErrorKey("");
-      return undefined;
+    } else {
+      setLoading(true);
+      setErrorKey("");
     }
-
-    setLoading(true);
-    setErrorKey("");
 
     cachedGet("/api/products", {
       params: {
@@ -494,6 +493,7 @@ export default function HomePageClient({
         }, {}),
       },
       ttl: normalizedSearch || normalizedCategory || hasVehicleFilters ? 30_000 : 120_000,
+      force: shouldReuseInitialData,
     })
       .then((data) => {
         if (ignore) {
