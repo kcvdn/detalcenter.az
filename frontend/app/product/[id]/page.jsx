@@ -260,7 +260,8 @@ export default function ProductDetailPage() {
     setLoading(true);
 
     cachedGet(`/api/products/${productId}`, {
-      ttl: 300_000,
+      ttl: 30_000,
+      force: true,
     })
       .then((data) => {
         if (!ignore) {
