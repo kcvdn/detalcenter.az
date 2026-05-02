@@ -813,7 +813,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
 
-            <div className="min-w-0 overflow-hidden rounded-[20px] border border-slate-300 bg-white p-5 shadow-sm sm:p-6">
+            <div className="min-w-0 overflow-hidden rounded-[20px] border border-slate-300 bg-white p-5 shadow-sm sm:p-6 lg:-ml-[340px] lg:w-[calc(100%+340px)]">
               <div className="flex items-center justify-between gap-3">
                 <div>
                   <h3 className="text-lg font-semibold tracking-tight text-slate-950">Uygun oldugu avtomobiller</h3>
@@ -1030,35 +1030,6 @@ export default function ProductDetailPage() {
         </section>
 
       </main>
-
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/96 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
-        <div
-          className={`mx-auto grid max-w-7xl items-center gap-2.5 px-3 py-3 ${
-            sellerPhoneHref ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-1"
-          }`}
-        >
-          {sellerPhoneHref ? (
-            <a
-              href={sellerPhoneHref}
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm"
-              aria-label="Zeng et"
-            >
-              <PhoneIcon />
-            </a>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={cartLoading}
-            className="inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {cartLoading ? <Spinner /> : null}
-            <span className="truncate">{cartLoading ? t("adding") : t("add_to_cart")}</span>
-          </button>
-        </div>
-      </div>
-
       {relatedLoading || relatedProducts.length > 0 ? (
         <section className="mx-auto mt-8 max-w-7xl px-3 pb-8 md:px-6">
           <div className="rounded-[24px] border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
