@@ -7,6 +7,7 @@ import AppImage from "@/components/AppImage";
 import BrandLockup from "@/components/BrandLockup";
 import { resolveImageSrc } from "@/lib/images";
 import { navigateWithProgress } from "@/lib/navigationProgress";
+import { formatCurrency, getCurrentPrice, getRegularPrice, hasDiscount } from "@/lib/pricing";
 import { storeProductPreview } from "@/lib/productTransitionCache";
 import { clearStoredSession, getStoredSession } from "@/lib/session";
 import useTranslation from "@/hooks/useTranslation";
@@ -135,7 +136,7 @@ export default function Navbar({
   showSearch = true,
 }) {
   const router = useRouter();
-  const { lang, t } = useTranslation();
+  const { lang, locale, t } = useTranslation();
   const [session, setSession] = useState({
     token: "",
     role: "",
@@ -322,9 +323,16 @@ export default function Navbar({
                                 <p className="truncate text-sm font-semibold text-slate-900">
                                   {product.name}
                                 </p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  {Number(product.price || 0).toLocaleString("az-AZ")} AZN
-                                </p>
+                                <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                                  <span className={`font-semibold ${hasDiscount(product) ? "text-red-600" : "text-slate-500"}`}>
+                                    {formatCurrency(getCurrentPrice(product), locale)}
+                                  </span>
+                                  {hasDiscount(product) ? (
+                                    <span className="text-slate-400 line-through">
+                                      {formatCurrency(getRegularPrice(product), locale)}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             </Link>
                           ))}

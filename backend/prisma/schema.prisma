@@ -118,6 +118,7 @@ model Product {
   name        String
   category    String
   price       Float
+  discountPrice Float?
   imageUrl    String
   oemCode     String?
   description String?

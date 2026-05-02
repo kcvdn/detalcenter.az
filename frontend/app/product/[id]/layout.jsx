@@ -1,4 +1,5 @@
 import StructuredData from "@/components/StructuredData";
+import { getCurrentPrice } from "@/lib/pricing";
 import {
   DEFAULT_SEO_DESCRIPTION,
   SITE_LANGUAGE,
@@ -42,7 +43,7 @@ function buildProductJsonLd(product, id) {
       "@type": "Offer",
       url: absoluteUrl(`/product/${product.id || id}`),
       priceCurrency: "AZN",
-      price: String(product.price || 0),
+      price: String(getCurrentPrice(product)),
       availability: "https://schema.org/InStock",
       itemCondition: "https://schema.org/NewCondition",
       seller: product.seller?.name

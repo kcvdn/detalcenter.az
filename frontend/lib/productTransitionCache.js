@@ -52,6 +52,7 @@ export function storeProductPreview(product) {
     id: product.id,
     name: product.name || "",
     price: product.price || 0,
+    discountPrice: product.discountPrice ?? null,
     image: product.image || "",
     description: product.description || "",
     seller: product.seller?.name ? { name: product.seller.name } : product.seller || null,

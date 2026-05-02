@@ -35,6 +35,33 @@ function normalizeOptionalString(value) {
   return normalizedValue || null;
 }
 
+function normalizeNullableNumber(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  const normalizedValue = Number(value);
+  return Number.isFinite(normalizedValue) ? normalizedValue : null;
+}
+
+function assertValidDiscountPrice(price, discountPrice) {
+  if (discountPrice === undefined || discountPrice === null) {
+    return;
+  }
+
+  if (!Number.isFinite(discountPrice) || discountPrice < 0) {
+    throw new ApiError(400, "Discount price must be a valid non-negative number");
+  }
+
+  if (!Number.isFinite(price) || price <= 0 || discountPrice >= price) {
+    throw new ApiError(400, "Discount price must be lower than the regular price");
+  }
+}
+
 function parseImageCollection(value) {
   if (Array.isArray(value)) {
     return value
@@ -216,6 +243,7 @@ function normalizeProductPayload(payload) {
     name: String(payload.name || "").trim(),
     category: normalizeCategory(payload.category),
     price: Number(payload.price),
+    discountPrice: normalizeNullableNumber(payload.discountPrice) ?? null,
     imageUrl: serializeImageCollection(imageUrls),
     oemCode: normalizeOptionalString(payload.oemCode),
     description: normalizeOptionalString(payload.description),
@@ -308,6 +336,8 @@ async function createProduct(payload, actor = null) {
   const normalizedPayload = normalizeProductPayload(payload);
   const scopedSellerId = getScopedSellerId(actor);
 
+  assertValidDiscountPrice(normalizedPayload.price, normalizedPayload.discountPrice);
+
   if (scopedSellerId) {
     normalizedPayload.sellerId = scopedSellerId;
   }
@@ -320,6 +350,7 @@ async function createProduct(payload, actor = null) {
         name: normalizedPayload.name,
         category: normalizedPayload.category,
         price: normalizedPayload.price,
+        discountPrice: normalizedPayload.discountPrice,
         imageUrl: normalizedPayload.imageUrl,
         oemCode: normalizedPayload.oemCode,
         description: normalizedPayload.description,
@@ -357,6 +388,7 @@ async function updateProduct(productId, payload, actor = null) {
     ...(payload.name !== undefined ? { name: String(payload.name).trim() } : {}),
     ...(payload.category !== undefined ? { category: normalizeCategory(payload.category) } : {}),
     ...(payload.price !== undefined ? { price: Number(payload.price) } : {}),
+    ...(payload.discountPrice !== undefined ? { discountPrice: normalizeNullableNumber(payload.discountPrice) } : {}),
     ...(payload.imageUrl !== undefined || payload.imageUrls !== undefined
       ? { imageUrl: serializeImageCollection(payload.imageUrls ?? payload.imageUrl) }
       : {}),
@@ -375,6 +407,11 @@ async function updateProduct(productId, payload, actor = null) {
     normalizedPayload.sellerId = scopedSellerId;
   }
 
+  assertValidDiscountPrice(
+    normalizedPayload.price ?? Number(existingProduct.price),
+    normalizedPayload.discountPrice !== undefined ? normalizedPayload.discountPrice : existingProduct.discountPrice,
+  );
+
   await prisma.$transaction(async (tx) => {
     if (normalizedPayload.sellerId !== undefined && normalizedPayload.sellerId !== null) {
       await assertSellerExists(tx, normalizedPayload.sellerId);
@@ -392,6 +429,7 @@ async function updateProduct(productId, payload, actor = null) {
         ...(normalizedPayload.name !== undefined ? { name: normalizedPayload.name } : {}),
         ...(normalizedPayload.category !== undefined ? { category: normalizedPayload.category } : {}),
         ...(normalizedPayload.price !== undefined ? { price: normalizedPayload.price } : {}),
+        ...(normalizedPayload.discountPrice !== undefined ? { discountPrice: normalizedPayload.discountPrice } : {}),
         ...(normalizedPayload.imageUrl !== undefined ? { imageUrl: normalizedPayload.imageUrl } : {}),
         ...(normalizedPayload.oemCode !== undefined ? { oemCode: normalizedPayload.oemCode } : {}),
         ...(normalizedPayload.description !== undefined

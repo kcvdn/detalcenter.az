@@ -26,6 +26,19 @@ const optionalInteger = z.preprocess((value) => {
   return Number.isFinite(parsedValue) ? Math.trunc(parsedValue) : value;
 }, z.number().int().positive().optional());
 
+const optionalNullablePrice = z.preprocess((value) => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null || value === "") {
+    return null;
+  }
+
+  const parsedValue = Number(value);
+  return Number.isFinite(parsedValue) ? parsedValue : value;
+}, z.number().nonnegative().nullable().optional());
+
 const imageCollectionSchema = z.preprocess((value) => {
   if (Array.isArray(value)) {
     return value;
@@ -76,6 +89,7 @@ const createProductSchema = z
     name: z.string().trim().min(1, "name is required"),
     category: z.string().trim().min(1, "category is required"),
     price: z.coerce.number().nonnegative(),
+    discountPrice: optionalNullablePrice,
     imageUrl: z.preprocess(normalizeOptionalString, z.string().trim().min(1).optional()),
     imageUrls: imageCollectionSchema.optional(),
     oemCode: z.preprocess(normalizeNullableString, z.string().trim().min(1).nullable()).optional(),
@@ -91,6 +105,12 @@ const createProductSchema = z
   }, {
     message: "At least one product image is required",
     path: ["imageUrls"],
+  })
+  .refine((value) => {
+    return value.discountPrice === undefined || value.discountPrice === null || value.discountPrice < value.price;
+  }, {
+    message: "discountPrice must be lower than price",
+    path: ["discountPrice"],
   });
 
 const updateProductSchema = z
@@ -98,12 +118,24 @@ const updateProductSchema = z
     name: z.preprocess(normalizeOptionalString, z.string().trim().min(1).optional()),
     category: z.preprocess(normalizeOptionalString, z.string().trim().min(1).optional()),
     price: z.coerce.number().nonnegative().optional(),
+    discountPrice: optionalNullablePrice,
     imageUrl: z.preprocess(normalizeOptionalString, z.string().trim().min(1).optional()),
     imageUrls: imageCollectionSchema.optional(),
     oemCode: z.preprocess(normalizeNullableString, z.string().trim().min(1).nullable()).optional(),
     description: z.preprocess(normalizeNullableString, z.string().trim().nullable()).optional(),
     sellerId: optionalInteger,
     compatibility: z.array(compatibilitySchema).min(1).optional(),
+  })
+  .refine((value) => {
+    return (
+      value.discountPrice === undefined ||
+      value.discountPrice === null ||
+      value.price === undefined ||
+      value.discountPrice < value.price
+    );
+  }, {
+    message: "discountPrice must be lower than price",
+    path: ["discountPrice"],
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "At least one product field must be provided",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -12,6 +12,7 @@ import { cachedGet } from "@/lib/apiClient";
 import { BRAND_NAME } from "@/lib/brand";
 import { productPlaceholderSrc, resolveImageSrc } from "@/lib/images";
 import { navigateWithProgress } from "@/lib/navigationProgress";
+import { formatCurrency, getCurrentPrice, getDiscountPercent, getRegularPrice, hasDiscount } from "@/lib/pricing";
 import { getProductPreview, storeProductPreview } from "@/lib/productTransitionCache";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 import useTranslation from "@/hooks/useTranslation";
@@ -147,6 +148,71 @@ function ChatIcon() {
   );
 }
 
+function normalizeDescriptionLine(text) {
+  return String(text || "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" ")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function getDescriptionLeadSplitIndex(text) {
+  return [":", ".", ";"]
+    .map((marker) => text.lastIndexOf(marker))
+    .filter((index) => index >= 18 && text.length - index <= 64)
+    .sort((left, right) => right - left)[0] ?? -1;
+}
+
+function formatDescriptionBlocks(rawDescription) {
+  const normalized = String(rawDescription || "")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/([.!?])\s+(?=[A-Z0-9ƏÖÜĞÇŞİ])/g, "$1\n\n")
+    .trim();
+
+  if (!normalized) {
+    return [];
+  }
+
+  return normalized
+    .split(/\n{2,}/)
+    .map((paragraph) => normalizeDescriptionLine(paragraph))
+    .filter(Boolean)
+    .flatMap((paragraph) => {
+      if ((paragraph.match(/~/g) || []).length < 2) {
+        return [{ type: "paragraph", text: paragraph }];
+      }
+
+      const firstSeparatorIndex = paragraph.indexOf("~");
+      const leadText = normalizeDescriptionLine(paragraph.slice(0, firstSeparatorIndex));
+      const splitIndex = getDescriptionLeadSplitIndex(leadText);
+      const introText = splitIndex >= 0 ? normalizeDescriptionLine(leadText.slice(0, splitIndex + 1)) : "";
+      const firstItem = splitIndex >= 0 ? normalizeDescriptionLine(leadText.slice(splitIndex + 1)) : leadText;
+      const remainingItems = paragraph
+        .slice(firstSeparatorIndex + 1)
+        .split(/\s*~\s*/)
+        .map((item) => normalizeDescriptionLine(item))
+        .filter(Boolean);
+      const listItems = [firstItem, ...remainingItems].filter(Boolean);
+      const blocks = [];
+
+      if (introText) {
+        blocks.push({ type: "paragraph", text: introText });
+      }
+
+      if (listItems.length) {
+        blocks.push({ type: "list", items: listItems });
+      }
+
+      return blocks.length ? blocks : [{ type: "paragraph", text: paragraph }];
+    });
+}
+
 function ProductDetailSkeleton() {
   return (
     <main className="mx-auto max-w-7xl px-3 py-4 md:px-6 md:py-10">
@@ -278,7 +344,7 @@ export default function ProductDetailPage() {
         const currentBrand = String(product.brand || "").trim().toLowerCase();
         const currentModel = String(product.model || "").trim().toLowerCase();
         const currentSellerId = Number(product.seller?.id || 0);
-        const currentPrice = Number(product.price || 0);
+        const currentPrice = getCurrentPrice(product);
 
         const rankedProducts = items
           .filter((item) => Number(item?.id) !== Number(product.id))
@@ -287,7 +353,7 @@ export default function ProductDetailPage() {
             const itemBrand = String(item?.brand || "").trim().toLowerCase();
             const itemModel = String(item?.model || "").trim().toLowerCase();
             const itemSellerId = Number(item?.seller?.id || 0);
-            const itemPrice = Number(item?.price || 0);
+            const itemPrice = getCurrentPrice(item);
             let score = 0;
 
             if (currentCategory && itemCategory === currentCategory) {
@@ -459,6 +525,34 @@ export default function ProductDetailPage() {
     } catch {}
   };
 
+  const handleBack = useCallback(() => {
+    if (typeof window === "undefined") {
+      navigateWithProgress(router, "/catalog");
+      return;
+    }
+
+    const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+    try {
+      if (document.referrer) {
+        const referrerUrl = new URL(document.referrer);
+        const target = `${referrerUrl.pathname}${referrerUrl.search}${referrerUrl.hash}`;
+
+        if (referrerUrl.origin === window.location.origin && target && target !== currentUrl) {
+          navigateWithProgress(router, target);
+          return;
+        }
+      }
+    } catch {}
+
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    navigateWithProgress(router, "/catalog");
+  }, [router]);
+
   if (loading && !product) {
     return <ProductDetailSkeleton />;
   }
@@ -497,13 +591,18 @@ export default function ProductDetailPage() {
     ? `https://wa.me/${sellerPhone.replace(/[^\d]/g, "")}?text=${encodeURIComponent(`${product.name} mehsulu barede melumat isteyirem`)}` 
     : "";
   const isFreshProduct = Date.now() - new Date(product.createdAt || Date.now()).getTime() < 1000 * 60 * 60 * 24 * 14;
+  const descriptionBlocks = formatDescriptionBlocks(product.description);
+  const hasProductDiscount = hasDiscount(product);
+  const regularPrice = getRegularPrice(product);
+  const currentPrice = getCurrentPrice(product);
+  const discountPercent = getDiscountPercent(product);
   return (
     <>
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/95 backdrop-blur md:hidden">
         <div className="flex items-center gap-3 px-4 py-3">
           <button
             type="button"
-            onClick={() => router.back()}
+            onClick={handleBack}
             className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-slate-700 transition hover:bg-slate-50"
             aria-label="Geri"
           >
@@ -511,9 +610,14 @@ export default function ProductDetailPage() {
           </button>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-slate-900">{product.name}</p>
-            <p className="mt-0.5 text-xs text-slate-500">
-              {Number(product.price || 0).toLocaleString(locale)} AZN
-            </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs">
+              <span className={`font-semibold ${hasProductDiscount ? "text-red-600" : "text-slate-500"}`}>
+                {formatCurrency(currentPrice, locale)}
+              </span>
+              {hasProductDiscount ? (
+                <span className="text-slate-400 line-through">{formatCurrency(regularPrice, locale)}</span>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>
@@ -604,9 +708,30 @@ export default function ProductDetailPage() {
                   </div>
                 </div>
 
-                <p className="text-2xl font-black text-slate-900 sm:text-3xl md:text-[2.1rem]">
-                  {Number(product.price || 0).toLocaleString(locale)} AZN
-                </p>
+                <div className="shrink-0 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 md:text-right">
+                  {hasProductDiscount ? (
+                    <>
+                      <div className="flex items-center gap-2 md:justify-end">
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.14em] text-red-600">
+                          -{discountPercent}%
+                        </span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
+                          Endirimli qiymet
+                        </span>
+                      </div>
+                      <p className="mt-2 text-2xl font-black text-red-600 sm:text-3xl md:text-[2.1rem]">
+                        {formatCurrency(currentPrice, locale)}
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-slate-400 line-through">
+                        {formatCurrency(regularPrice, locale)}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-2xl font-black text-slate-900 sm:text-3xl md:text-[2.1rem]">
+                      {formatCurrency(regularPrice, locale)}
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="mt-6 grid gap-3 text-sm text-slate-700 sm:grid-cols-2">
@@ -726,8 +851,8 @@ export default function ProductDetailPage() {
                   </div>
               )}
 
-              <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-6">
-                <div className="flex items-start justify-between gap-4">
+              <div className="mt-5 rounded-[24px] border border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50/70 px-5 py-6 shadow-[0_18px_40px_rgba(15,23,42,0.05)] sm:px-6">
+                <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
                   <div>
                     <h3 className="text-xl font-bold text-slate-950">Tesvir</h3>
                     <p className="mt-1 text-sm text-slate-500">Mehsul haqqinda esas melumat.</p>
@@ -736,9 +861,32 @@ export default function ProductDetailPage() {
                     #{product.id}
                   </span>
                 </div>
-                <p className="mt-4 text-base leading-7 text-slate-700">
-                  {product.description || "Bu mehsul ucun hele etrafli tesvir elave edilmeyib."}
-                </p>
+                <div className="mt-5 space-y-4">
+                  {descriptionBlocks.length ? (
+                    descriptionBlocks.map((block, index) =>
+                      block.type === "list" ? (
+                        <div key={`description-list-${index}`} className="grid gap-2 sm:grid-cols-2">
+                          {block.items.map((item, itemIndex) => (
+                            <div
+                              key={`description-item-${index}-${itemIndex}`}
+                              className="rounded-2xl border border-slate-200 bg-white px-3.5 py-3 text-sm leading-6 text-slate-700"
+                            >
+                              {item}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p key={`description-text-${index}`} className="text-[15px] leading-8 text-slate-700">
+                          {block.text}
+                        </p>
+                      ),
+                    )
+                  ) : (
+                    <p className="text-[15px] leading-8 text-slate-700">
+                      Bu mehsul ucun hele etrafli tesvir elave edilmeyib.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -883,21 +1031,16 @@ export default function ProductDetailPage() {
 
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/96 backdrop-blur md:hidden">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-3">
-          <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-              {t("price")}
-            </p>
-            <p className="text-lg font-black text-slate-950">
-              {Number(product.price || 0).toLocaleString(locale)} AZN
-            </p>
-          </div>
-
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/96 shadow-[0_-10px_30px_rgba(15,23,42,0.08)] backdrop-blur md:hidden">
+        <div
+          className={`mx-auto grid max-w-7xl items-center gap-2.5 px-3 py-3 ${
+            sellerPhoneHref ? "grid-cols-[auto_minmax(0,1fr)]" : "grid-cols-1"
+          }`}
+        >
           {sellerPhoneHref ? (
             <a
               href={sellerPhoneHref}
-              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900"
+              className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm"
               aria-label="Zeng et"
             >
               <PhoneIcon />
@@ -908,10 +1051,10 @@ export default function ProductDetailPage() {
             type="button"
             onClick={handleAddToCart}
             disabled={cartLoading}
-            className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="inline-flex min-h-12 min-w-0 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3 text-sm font-semibold text-white shadow-[0_14px_28px_rgba(15,23,42,0.18)] transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {cartLoading ? <Spinner /> : null}
-            {cartLoading ? t("adding") : t("add_to_cart")}
+            <span className="truncate">{cartLoading ? t("adding") : t("add_to_cart")}</span>
           </button>
         </div>
       </div>

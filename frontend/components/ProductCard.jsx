@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { productPlaceholderSrc, resolveImageSrc } from "@/lib/images";
 import { navigateWithProgress } from "@/lib/navigationProgress";
+import { formatCurrency, getCurrentPrice, getDiscountPercent, getRegularPrice, hasDiscount } from "@/lib/pricing";
 import { storeProductPreview } from "@/lib/productTransitionCache";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 import useTranslation from "@/hooks/useTranslation";
@@ -69,7 +70,7 @@ function Spinner() {
 
 function ProductCardComponent({ product, favoriteId = null, onFavoriteChange }) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [currentFavoriteId, setCurrentFavoriteId] = useState(favoriteId);
   const [favoriteLoading, setFavoriteLoading] = useState(false);
   const [cartLoading, setCartLoading] = useState(false);
@@ -81,6 +82,10 @@ function ProductCardComponent({ product, favoriteId = null, onFavoriteChange }) 
 
   const imageUrl = resolveImageSrc(product.image, productPlaceholderSrc);
   const imageSrc = imageUrl || productPlaceholderSrc;
+  const hasProductDiscount = hasDiscount(product);
+  const currentPrice = getCurrentPrice(product);
+  const regularPrice = getRegularPrice(product);
+  const discountPercent = getDiscountPercent(product);
 
   const handleFavoriteClick = useCallback(async (event) => {
     event.preventDefault();
@@ -226,9 +231,21 @@ function ProductCardComponent({ product, favoriteId = null, onFavoriteChange }) 
 
             <div className="flex items-start gap-3">
               <div>
-                <p className="text-base font-bold text-red-600">
-                  {Number(product.price || 0).toLocaleString("az-AZ")} AZN
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={`font-bold text-red-600 ${hasProductDiscount ? "text-lg" : "text-base"}`}>
+                    {formatCurrency(currentPrice, locale)}
+                  </p>
+                  {hasProductDiscount ? (
+                    <span className="rounded-full bg-red-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.12em] text-red-600">
+                      -{discountPercent}%
+                    </span>
+                  ) : null}
+                </div>
+                {hasProductDiscount ? (
+                  <p className="mt-0.5 text-[11px] text-slate-400 line-through">
+                    {formatCurrency(regularPrice, locale)}
+                  </p>
+                ) : null}
                 <p className="mt-0.5 text-[11px] text-slate-500">
                   {product.seller?.name || t("seller_none")}
                 </p>
@@ -239,10 +256,10 @@ function ProductCardComponent({ product, favoriteId = null, onFavoriteChange }) 
               type="button"
               onClick={handleAddToCart}
               disabled={cartLoading}
-              className="press-feedback touch-target inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition duration-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="press-feedback touch-target inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-slate-950 px-3.5 py-2.5 text-[13px] font-semibold text-white transition duration-200 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:gap-2 sm:px-4 sm:text-sm"
             >
               {cartLoading ? <Spinner /> : <CartIcon />}
-              {cartLoading ? t("adding") : t("add_to_cart")}
+              <span className="truncate">{cartLoading ? t("adding") : t("add_to_cart")}</span>
             </button>
           </div>
         </article>

@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 import AppImage from "@/components/AppImage";
 import SkeletonCard from "@/components/SkeletonCard";
 import { productPlaceholderSrc, resolveImageSrc } from "@/lib/images";
+import { formatCurrency, getCurrentPrice, getRegularPrice, hasDiscount } from "@/lib/pricing";
 import { getAuthHeaders } from "@/lib/session";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -17,6 +18,7 @@ const Toast = dynamic(() => import("@/app/dashboard/components/Toast"), {
 const emptyEditForm = {
   name: "",
   price: "",
+  discountPrice: "",
   imageFile: null,
   currentImage: "",
 };
@@ -119,6 +121,7 @@ export default function DashboardSellerDetailPage() {
     setEditForm({
       name: product.name || "",
       price: String(product.price ?? ""),
+      discountPrice: product.discountPrice === null || product.discountPrice === undefined ? "" : String(product.discountPrice),
       imageFile: null,
       currentImage: getImageUrl(product.image),
     });
@@ -136,12 +139,21 @@ export default function DashboardSellerDetailPage() {
       return;
     }
 
+    if (
+      editForm.discountPrice !== "" &&
+      (Number.isNaN(Number(editForm.discountPrice)) || Number(editForm.discountPrice) >= Number(editForm.price))
+    ) {
+      setToast({ message: "Endirim qiymeti esas qiymetden asagi olmalidir.", type: "error" });
+      return;
+    }
+
     setSavingId(product.id);
 
     try {
       const payload = {
         name: editForm.name.trim(),
         price: Number(editForm.price),
+        discountPrice: editForm.discountPrice === "" ? null : Number(editForm.discountPrice),
       };
 
       if (editForm.imageFile) {
@@ -301,6 +313,8 @@ export default function DashboardSellerDetailPage() {
 
                             <input
                               type="number"
+                              min="0"
+                              step="0.01"
                               value={editForm.price}
                               onChange={(event) =>
                                 setEditForm((current) => ({
@@ -310,6 +324,20 @@ export default function DashboardSellerDetailPage() {
                               }
                               className="w-full rounded-xl border border-slate-200 px-4 py-3"
                               placeholder="Price"
+                            />
+                            <input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editForm.discountPrice}
+                              onChange={(event) =>
+                                setEditForm((current) => ({
+                                  ...current,
+                                  discountPrice: event.target.value,
+                                }))
+                              }
+                              className="w-full rounded-xl border border-slate-200 px-4 py-3"
+                              placeholder="Endirim qiymeti"
                             />
 
                             <input
@@ -328,9 +356,16 @@ export default function DashboardSellerDetailPage() {
                         ) : (
                           <>
                             <h3 className="text-lg font-semibold text-slate-900">{product.name}</h3>
-                            <p className="text-2xl font-bold text-red-600">
-                              {Number(product.price || 0).toLocaleString("az-AZ")} AZN
-                            </p>
+                            <div>
+                              <p className="text-2xl font-bold text-red-600">
+                                {formatCurrency(getCurrentPrice(product))}
+                              </p>
+                              {hasDiscount(product) ? (
+                                <p className="mt-1 text-sm text-slate-400 line-through">
+                                  {formatCurrency(getRegularPrice(product))}
+                                </p>
+                              ) : null}
+                            </div>
                           </>
                         )}
 

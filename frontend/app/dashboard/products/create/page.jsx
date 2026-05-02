@@ -5,6 +5,7 @@ import axios from "axios";
 import dynamic from "next/dynamic";
 import AppImage from "@/components/AppImage";
 import { productPlaceholderSrc } from "@/lib/images";
+import { formatCurrency, getCurrentPrice, getRegularPrice, hasDiscount } from "@/lib/pricing";
 import { getAuthHeaders, getStoredSession } from "@/lib/session";
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL || "";
@@ -48,6 +49,7 @@ const emptyForm = {
   name: "",
   category: "",
   price: "",
+  discountPrice: "",
   oemCode: "",
   description: "",
   sellerId: "",
@@ -177,6 +179,10 @@ export default function CreateProductPage() {
     () => normalizeCompatibilityPayload(compatibility),
     [compatibility],
   );
+  const previewPricingProduct = useMemo(() => ({
+    price: Number(form.price || 0),
+    discountPrice: form.discountPrice === "" ? null : Number(form.discountPrice),
+  }), [form.discountPrice, form.price]);
 
   const categoryOptions = useMemo(() => {
     return categories
@@ -297,6 +303,14 @@ export default function CreateProductPage() {
       return;
     }
 
+    if (
+      form.discountPrice !== "" &&
+      (Number.isNaN(Number(form.discountPrice)) || Number(form.discountPrice) >= Number(form.price))
+    ) {
+      setToast({ message: "Endirim qiymeti esas qiymetden asagi olmalidir.", type: "error" });
+      return;
+    }
+
     const compatibilityError = validateCompatibility();
 
     if (compatibilityError) {
@@ -320,6 +334,7 @@ export default function CreateProductPage() {
         name: form.name.trim(),
         category: form.category.trim(),
         price: Number(form.price),
+        discountPrice: form.discountPrice === "" ? null : Number(form.discountPrice),
         oemCode: form.oemCode.trim() || null,
         description: form.description.trim() || null,
         imageUrls,
@@ -421,6 +436,26 @@ export default function CreateProductPage() {
                 required
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
               />
+            </div>
+
+            <div>
+              <label className="mb-3 block text-sm font-semibold text-slate-700" htmlFor="product-discount-price">
+                Endirim qiymeti
+              </label>
+              <input
+                id="product-discount-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.discountPrice}
+                onChange={updateField("discountPrice")}
+                placeholder="Bos saxla"
+                disabled={submitting}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
+              />
+              <p className="mt-2 text-xs text-slate-500">
+                Yazilsarsa vitrin ve mehsul sehifesinde endirimli qiymet kimi gosterilecek.
+              </p>
             </div>
 
             <div>
@@ -712,11 +747,20 @@ export default function CreateProductPage() {
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
                   Qiymet
                 </p>
-                <p className="mt-1 text-2xl font-black text-red-600">
-                  {form.price !== ""
-                    ? `${Number(form.price || 0).toLocaleString("az-AZ")} AZN`
-                    : "0 AZN"}
-                </p>
+                {hasDiscount(previewPricingProduct) ? (
+                  <>
+                    <p className="mt-1 text-2xl font-black text-red-600">
+                      {formatCurrency(getCurrentPrice(previewPricingProduct))}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-400 line-through">
+                      {formatCurrency(getRegularPrice(previewPricingProduct))}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-1 text-2xl font-black text-red-600">
+                    {formatCurrency(getRegularPrice(previewPricingProduct))}
+                  </p>
+                )}
               </div>
 
             </div>

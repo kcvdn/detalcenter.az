@@ -130,6 +130,7 @@ function serializeProduct(product, req, preferredVehicle = null) {
     name: product.name,
     category: product.category,
     price: Number(product.price),
+    discountPrice: product.discountPrice === null || product.discountPrice === undefined ? null : Number(product.discountPrice),
     imageUrl: normalizedImageUrl,
     image: normalizedImageUrl,
     images: normalizedImages,
